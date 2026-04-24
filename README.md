@@ -43,6 +43,22 @@ npm install && npm run dev
 
 ## 服务器快速部署
 
+### 一键脚本（推荐）
+
+```bash
+# 下载并运行，自动完成环境安装+代码拉取+构建+启动
+curl -fsSL https://raw.githubusercontent.com/zishuo-xu/my-blog/main/deploy.sh | bash
+
+# 或先下载再运行（可修改脚本顶部的配置项）
+wget https://raw.githubusercontent.com/zishuo-xu/my-blog/main/deploy.sh
+# 编辑 ADMIN_PASSWORD 等配置后再执行
+bash deploy.sh
+```
+
+脚本自动完成：Python3 + Node.js 安装 → 代码拉取 → .env配置 → 依赖安装 → 前端构建 → systemd服务配置 → 开机自启
+
+### 手动部署
+
 ```bash
 # 1. 拉取代码
 git clone https://github.com/zishuo-xu/my-blog.git && cd my-blog
