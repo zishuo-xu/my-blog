@@ -174,10 +174,9 @@ npm run dev
 
 默认账号：`admin` / `change_me_in_production`（在 `.env` 中修改）
 
-### Docker部署
+### Docker本地部署
 
 ```bash
-# 一键启动
 docker-compose up -d
 
 # 访问
@@ -187,18 +186,228 @@ docker-compose up -d
 
 数据持久化：SQLite数据库和图片文件挂载到宿主机 `./data/backend/` 目录。
 
-### 生产环境部署
+### 服务器快速部署（生产环境）
 
-1. 修改 `.env` 中的敏感配置：
-   - `ADMIN_PASSWORD`：设为强密码
-   - `JWT_SECRET_KEY`：设为随机字符串（≥32位）
-   - `FRONTEND_URL`：设为实际域名
-   - `SITE_URL`：设为实际域名
-   - `DEBUG=false`：关闭调试模式
+以下步骤适用于全新Linux服务器（Ubuntu/Debian/CentOS均可），从零开始部署整个博客。
 
-2. 配置HTTPS（推荐使用 Caddy 或 Nginx + Let's Encrypt）
+#### 1. 服务器基础环境
 
-3. 定期备份数据：调用 `GET /api/v1/admin/backup` 下载数据库+图片ZIP包
+```bash
+# 安装Docker（如已安装跳过）
+curl -fsSL https://get.docker.com | sh
+systemctl enable docker && systemctl start docker
+
+# 安装docker-compose（如已安装跳过）
+curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
+  -o /usr/local/bin/docker-compose
+chmod +x /usr/local/bin/docker-compose
+
+# 验证
+docker --version && docker-compose --version
+```
+
+#### 2. 拉取代码
+
+```bash
+# 方式一：git clone（推荐）
+git clone https://github.com/zishuo-xu/my-blog.git
+cd my-blog
+
+# 方式二：如果没有git，直接下载ZIP
+# apt install -y unzip  # CentOS用 yum install -y unzip
+# wget https://github.com/zishuo-xu/my-blog/archive/refs/heads/main.zip
+# unzip main.zip && mv my-blog-main my-blog && cd my-blog
+```
+
+#### 3. 配置环境变量
+
+```bash
+cp .env.example .env
+```
+
+编辑 `.env`，**必须修改以下项**：
+
+```bash
+# 管理员密码（必须改为强密码）
+ADMIN_PASSWORD=你的强密码
+
+# JWT密钥（必须改为随机字符串，≥32位）
+# 可用此命令生成：openssl rand -hex 32
+JWT_SECRET_KEY=生成的随机字符串
+
+# 域名配置（改为你的实际域名）
+FRONTEND_URL=https://your-domain.com
+SITE_URL=https://your-domain.com
+
+# 关闭调试模式
+DEBUG=false
+
+# Docker环境下的路径适配
+DATABASE_URL=sqlite:///./data/blog.db
+UPLOAD_DIR=/app/data/upload
+```
+
+#### 4. 一键启动
+
+```bash
+docker-compose up -d --build
+```
+
+首次构建需要5-10分钟（下载镜像+编译前端），完成后：
+
+```bash
+# 查看容器状态
+docker-compose ps
+
+# 查看后端日志
+docker-compose logs -f backend
+```
+
+#### 5. 配置HTTPS（Caddy方案，推荐）
+
+Caddy 自动申请和续期 Let's Encrypt 证书，零配置HTTPS。
+
+```bash
+# 安装Caddy
+sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+sudo apt update && sudo apt install caddy
+```
+
+编辑 `/etc/caddy/Caddyfile`：
+
+```
+your-domain.com {
+    reverse_proxy localhost:80
+
+    # 日志
+    log {
+        output file /var/log/caddy/blog.log
+    }
+}
+```
+
+```bash
+# 启动Caddy
+systemctl restart caddy
+
+# 验证HTTPS
+curl -I https://your-domain.com
+```
+
+> **如果不用Caddy**，也可以用Nginx + certbot：
+> ```bash
+> apt install -y nginx certbot python3-certbot-nginx
+> certbot --nginx -d your-domain.com
+> ```
+> Nginx配置参考 `frontend/nginx.conf`，将 `proxy_pass` 指向 `http://localhost:80`。
+
+#### 6. 防火墙放行
+
+```bash
+# Ubuntu/Debian
+ufw allow 80
+ufw allow 443
+ufw allow 22
+
+# CentOS
+firewall-cmd --permanent --add-service=http
+firewall-cmd --permanent --add-service=https
+firewall-cmd --reload
+```
+
+#### 7. 验证部署
+
+```bash
+# 检查服务是否正常
+curl http://localhost:8000/health
+
+# 前台访问
+# https://your-domain.com
+
+# 后台访问
+# https://your-domain.com/admin/login
+```
+
+#### 8. 数据备份
+
+**自动备份（推荐）：**
+
+```bash
+# 创建定时备份脚本
+cat > /root/backup-blog.sh << 'SCRIPT'
+#!/bin/bash
+BACKUP_DIR="/root/blog-backups"
+mkdir -p $BACKUP_DIR
+DATE=$(date +%Y%m%d_%H%M%S)
+
+# 调用后端备份接口
+curl -s -H "Authorization: Bearer $(curl -s -X POST http://localhost:8000/api/v1/admin/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"你的密码"}' | python3 -c 'import sys,json;print(json.load(sys.stdin)["data"]["token"])')" \
+  http://localhost:8000/api/v1/admin/backup \
+  -o $BACKUP_DIR/blog_$DATE.zip
+
+# 只保留最近30天的备份
+find $BACKUP_DIR -name "blog_*.zip" -mtime +30 -delete
+
+echo "备份完成: blog_$DATE.zip"
+SCRIPT
+
+chmod +x /root/backup-blog.sh
+```
+
+```bash
+# 每天凌晨3点自动备份
+crontab -e
+# 添加以下行：
+0 3 * * * /root/backup-blog.sh >> /var/log/blog-backup.log 2>&1
+```
+
+**手动备份：**
+
+```bash
+# 方式一：调用API下载
+curl -H "Authorization: Bearer <your_token>" \
+  https://your-domain.com/api/v1/admin/backup -o backup.zip
+
+# 方式二：直接复制数据目录
+cp -r ./data/backend/ ./backup_$(date +%Y%m%d)/
+```
+
+#### 9. 常用运维命令
+
+```bash
+# 查看日志
+docker-compose logs -f              # 所有服务
+docker-compose logs -f backend      # 仅后端
+docker-compose logs -f frontend     # 仅前端
+
+# 重启服务
+docker-compose restart
+
+# 更新代码后重新部署
+git pull
+docker-compose up -d --build
+
+# 停止服务
+docker-compose down
+
+# 停止并清除数据（危险！会删除数据库和图片）
+docker-compose down -v
+```
+
+#### 10. 域名DNS配置
+
+在你的域名服务商处添加A记录：
+
+| 类型 | 主机记录 | 记录值 | TTL |
+|------|----------|--------|-----|
+| A | @ | 你的服务器IP | 600 |
+| A | www | 你的服务器IP | 600 |
+
+DNS生效后（通常10分钟-2小时），即可通过域名访问。
 
 ## 环境变量说明
 
