@@ -188,25 +188,9 @@ docker-compose up -d
 
 ### 服务器快速部署（生产环境）
 
-以下步骤适用于全新Linux服务器（Ubuntu/Debian/CentOS均可），从零开始部署整个博客。
+以下步骤适用于全新Linux服务器（Ubuntu/Debian/CentOS均可），提供 **直接运行** 和 **Docker** 两种方案，任选其一。
 
-#### 1. 服务器基础环境
-
-```bash
-# 安装Docker（如已安装跳过）
-curl -fsSL https://get.docker.com | sh
-systemctl enable docker && systemctl start docker
-
-# 安装docker-compose（如已安装跳过）
-curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
-  -o /usr/local/bin/docker-compose
-chmod +x /usr/local/bin/docker-compose
-
-# 验证
-docker --version && docker-compose --version
-```
-
-#### 2. 拉取代码
+#### 1. 拉取代码（两种方案通用）
 
 ```bash
 # 方式一：git clone（推荐）
@@ -219,7 +203,7 @@ cd my-blog
 # unzip main.zip && mv my-blog-main my-blog && cd my-blog
 ```
 
-#### 3. 配置环境变量
+#### 2. 配置环境变量（两种方案通用）
 
 ```bash
 cp .env.example .env
@@ -241,31 +225,224 @@ SITE_URL=https://your-domain.com
 
 # 关闭调试模式
 DEBUG=false
+```
 
-# Docker环境下的路径适配
+---
+
+#### 方案A：直接运行（轻量，无需Docker）
+
+适合低配服务器或不想装Docker的场景。
+
+**A1. 安装运行环境**
+
+```bash
+# Python 3.10+（Ubuntu 22.04+自带，低版本需自行安装）
+python3 --version
+
+# Node.js 18+（推荐用nvm安装）
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+source ~/.bashrc
+nvm install 20
+nvm use 20
+
+# 验证
+python3 --version && node --version
+```
+
+**A2. 启动后端**
+
+```bash
+cd backend
+
+# 创建虚拟环境并安装依赖
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# 确保上传目录存在
+mkdir -p app/static/upload
+
+# 用systemd管理后端进程（推荐）
+cat > /etc/systemd/system/blog-backend.service << EOF
+[Unit]
+Description=Blog Backend API
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=$(pwd)
+Environment=PATH=$(pwd)/venv/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=$(pwd)/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable blog-backend
+systemctl start blog-backend
+
+# 查看状态
+systemctl status blog-backend
+```
+
+**A3. 构建并启动前端**
+
+```bash
+cd frontend
+
+# 安装依赖并构建
+npm install
+npm run build
+
+# 产物在 dist/ 目录，用Nginx托管静态文件
+# 安装Nginx
+apt install -y nginx   # CentOS用 yum install -y nginx
+```
+
+创建Nginx配置 `/etc/nginx/sites-available/blog`：
+
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    # 前端静态文件
+    root /root/my-blog/frontend/dist;
+    index index.html;
+
+    # Gzip压缩
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml text/javascript;
+    gzip_min_length 1000;
+
+    # 静态资源缓存
+    location /assets/ {
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # API请求代理到后端
+    location /api/ {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    # 图片文件代理到后端
+    location /static/ {
+        proxy_pass http://127.0.0.1:8000;
+    }
+
+    # SPA路由：所有非文件请求返回index.html
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
+```
+
+```bash
+# 启用站点配置
+ln -sf /etc/nginx/sites-available/blog /etc/nginx/sites-enabled/
+rm -f /etc/nginx/sites-enabled/default   # 移除默认站点
+nginx -t && systemctl restart nginx
+```
+
+**A4. 常用运维命令**
+
+```bash
+# 查看后端日志
+journalctl -u blog-backend -f
+
+# 重启后端
+systemctl restart blog-backend
+
+# 更新代码后重新部署
+cd my-blog && git pull
+cd backend && source venv/bin/activate && pip install -r requirements.txt
+systemctl restart blog-backend
+cd ../frontend && npm install && npm run build
+# Nginx会自动使用新的dist文件，无需重启
+
+# 停止后端
+systemctl stop blog-backend
+```
+
+---
+
+#### 方案B：Docker一键部署
+
+适合想快速部署、不想手动配置环境的场景。
+
+**B1. 安装Docker**
+
+```bash
+curl -fsSL https://get.docker.com | sh
+systemctl enable docker && systemctl start docker
+
+# 安装docker-compose
+curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
+  -o /usr/local/bin/docker-compose
+chmod +x /usr/local/bin/docker-compose
+
+# 验证
+docker --version && docker-compose --version
+```
+
+**B2. 配置Docker专用环境变量**
+
+在 `.env` 中额外修改路径适配项：
+
+```bash
 DATABASE_URL=sqlite:///./data/blog.db
 UPLOAD_DIR=/app/data/upload
 ```
 
-#### 4. 一键启动
+**B3. 一键启动**
 
 ```bash
 docker-compose up -d --build
 ```
 
-首次构建需要5-10分钟（下载镜像+编译前端），完成后：
+首次构建需要5-10分钟，完成后：
 
 ```bash
 # 查看容器状态
 docker-compose ps
 
-# 查看后端日志
+# 查看日志
 docker-compose logs -f backend
 ```
 
-#### 5. 配置HTTPS（Caddy方案，推荐）
+**B4. 常用运维命令**
 
-Caddy 自动申请和续期 Let's Encrypt 证书，零配置HTTPS。
+```bash
+# 查看日志
+docker-compose logs -f              # 所有服务
+docker-compose logs -f backend      # 仅后端
+
+# 重启服务
+docker-compose restart
+
+# 更新代码后重新部署
+git pull && docker-compose up -d --build
+
+# 停止服务
+docker-compose down
+
+# 停止并清除数据（危险！会删除数据库和图片）
+docker-compose down -v
+```
+
+---
+
+#### 配置HTTPS（两种方案通用）
+
+推荐Caddy，自动申请和续期Let's Encrypt证书，零配置。
 
 ```bash
 # 安装Caddy
@@ -281,7 +458,6 @@ sudo apt update && sudo apt install caddy
 your-domain.com {
     reverse_proxy localhost:80
 
-    # 日志
     log {
         output file /var/log/caddy/blog.log
     }
@@ -289,27 +465,22 @@ your-domain.com {
 ```
 
 ```bash
-# 启动Caddy
 systemctl restart caddy
-
-# 验证HTTPS
 curl -I https://your-domain.com
 ```
 
 > **如果不用Caddy**，也可以用Nginx + certbot：
 > ```bash
-> apt install -y nginx certbot python3-certbot-nginx
+> apt install -y certbot python3-certbot-nginx
 > certbot --nginx -d your-domain.com
 > ```
-> Nginx配置参考 `frontend/nginx.conf`，将 `proxy_pass` 指向 `http://localhost:80`。
+> 证书自动续期已内置在certbot定时任务中。
 
-#### 6. 防火墙放行
+#### 防火墙放行
 
 ```bash
 # Ubuntu/Debian
-ufw allow 80
-ufw allow 443
-ufw allow 22
+ufw allow 80 && ufw allow 443 && ufw allow 22
 
 # CentOS
 firewall-cmd --permanent --add-service=http
@@ -317,25 +488,19 @@ firewall-cmd --permanent --add-service=https
 firewall-cmd --reload
 ```
 
-#### 7. 验证部署
+#### 验证部署
 
 ```bash
-# 检查服务是否正常
 curl http://localhost:8000/health
-
-# 前台访问
-# https://your-domain.com
-
-# 后台访问
-# https://your-domain.com/admin/login
+# 前台：https://your-domain.com
+# 后台：https://your-domain.com/admin/login
 ```
 
-#### 8. 数据备份
+#### 数据备份
 
 **自动备份（推荐）：**
 
 ```bash
-# 创建定时备份脚本
 cat > /root/backup-blog.sh << 'SCRIPT'
 #!/bin/bash
 BACKUP_DIR="/root/blog-backups"
@@ -372,35 +537,14 @@ crontab -e
 curl -H "Authorization: Bearer <your_token>" \
   https://your-domain.com/api/v1/admin/backup -o backup.zip
 
-# 方式二：直接复制数据目录
-cp -r ./data/backend/ ./backup_$(date +%Y%m%d)/
+# 方式二：直接复制数据
+cp -r ./data/backend/ ./backup_$(date +%Y%m%d)/    # Docker方案
+cp backend/blog.db backend/app/static/upload/ ./backup_$(date +%Y%m%d)/ -r  # 直接运行方案
 ```
 
-#### 9. 常用运维命令
+#### 域名DNS配置
 
-```bash
-# 查看日志
-docker-compose logs -f              # 所有服务
-docker-compose logs -f backend      # 仅后端
-docker-compose logs -f frontend     # 仅前端
-
-# 重启服务
-docker-compose restart
-
-# 更新代码后重新部署
-git pull
-docker-compose up -d --build
-
-# 停止服务
-docker-compose down
-
-# 停止并清除数据（危险！会删除数据库和图片）
-docker-compose down -v
-```
-
-#### 10. 域名DNS配置
-
-在你的域名服务商处添加A记录：
+在域名服务商处添加A记录：
 
 | 类型 | 主机记录 | 记录值 | TTL |
 |------|----------|--------|-----|
