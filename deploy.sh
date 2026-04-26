@@ -35,18 +35,15 @@ else
     apt install -y python3 python3-venv python3-pip
 fi
 
-# Node.js（通过nvm安装）
-if command -v node &>/dev/null && [ "$(node -v | cut -d. -f1 | sed 's/v//')" -ge 18 ]; then
-    info "Node.js 已安装: $(node --version)"
-else
-    info "安装 Node.js..."
-    apt install -y curl
-    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-    export NVM_DIR="$HOME/.nvm"
-    [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
-    nvm install 20
-    info "Node.js 安装完成: $(node --version)"
-fi
+# Node.js（通过nvm安装，确保>=20）
+apt install -y curl
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+nvm install 20
+nvm use 20
+nvm alias default 20
+info "Node.js 版本: $(node --version)"
 
 # nvm环境变量写入bashrc（确保后续生效）
 if ! grep -q 'NVM_DIR' ~/.bashrc 2>/dev/null; then
@@ -125,6 +122,10 @@ npm install -g serve
 # ===== 6. 配置systemd服务 =====
 info "===== 步骤6: 配置开机自启服务 ====="
 
+# 获取nvm管理的node实际路径，供systemd使用
+NODE_BIN_DIR=$(dirname $(which node))
+SERVE_PATH=$(which serve)
+
 # 后端服务
 cat > /etc/systemd/system/blog-backend.service << EOF
 [Unit]
@@ -142,7 +143,7 @@ RestartSec=5
 WantedBy=multi-user.target
 EOF
 
-# 前端服务
+# 前端服务（使用nvm的node路径）
 cat > /etc/systemd/system/blog-frontend.service << EOF
 [Unit]
 Description=Blog Frontend
@@ -151,7 +152,8 @@ After=network.target
 Type=simple
 User=root
 WorkingDirectory=${PROJECT_DIR}/frontend
-ExecStart=$(which serve) dist -s -l ${FRONTEND_PORT}
+Environment=PATH=${NODE_BIN_DIR}:/usr/local/bin:/usr/bin:/bin
+ExecStart=${SERVE_PATH} dist -s -l ${FRONTEND_PORT}
 Restart=always
 RestartSec=5
 [Install]
