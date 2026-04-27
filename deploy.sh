@@ -99,9 +99,12 @@ deactivate
 # ===== 5. 前端构建 =====
 info "===== 5. 前端构建 ====="
 cd "$PROJECT_DIR/frontend"
-npm install 2>/dev/null | tail -3
-npm run build || err "前端构建失败"
-npm install -g serve
+# 显式用nvm的node，避免shell版本不一致
+NVM_NODE=/root/.nvm/versions/node/v20.20.2/bin/node
+NVM_NPM=/root/.nvm/versions/node/v20.20.2/bin/npm
+$NVM_NPM install 2>/dev/null | tail -3
+$NVM_NODE node_modules/.bin/vite build || $NVM_NPM run build || err "前端构建失败"
+$NVM_NPM install -g serve
 
 # 获取nvm的bin目录（node和serve所在位置），供systemd使用
 NVM_NODE_BIN=$(dirname $(nvm which node))
