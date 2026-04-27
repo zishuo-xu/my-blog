@@ -394,7 +394,7 @@ export default function AdminEditor() {
   }, [isDragging]);
 
   return (
-    <div className="h-[calc(100vh-3rem)] flex flex-col">
+    <div className="h-full flex flex-col">
       {/* ===== 顶部配置表单 ===== */}
       <div className="flex flex-wrap items-center gap-3 pb-3 border-b border-gray-200 dark:border-gray-700 mb-2">
         <input

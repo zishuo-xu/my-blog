@@ -31,7 +31,7 @@ export default function AdminLayout() {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-900">
       {/* 侧边栏 */}
       <aside className="w-52 shrink-0 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col">
         {/* 侧边栏标题 */}
@@ -82,7 +82,7 @@ export default function AdminLayout() {
         </header>
 
         {/* 内容区 */}
-        <main className="flex-1 p-6 overflow-y-auto">
+        <main className="flex-1 p-6 overflow-hidden">
           <Outlet />
         </main>
       </div>
