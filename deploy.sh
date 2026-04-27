@@ -80,6 +80,9 @@ sed -i "s|^FRONTEND_URL=.*|FRONTEND_URL=http://${SERVER_IP}:${FRONTEND_PORT}|" .
 sed -i "s|^SITE_URL=.*|SITE_URL=http://${SERVER_IP}:${BACKEND_PORT}|" .env
 sed -i "s|^DEBUG=.*|DEBUG=false|" .env
 
+# 前端环境变量（API地址必须打包进代码）
+echo "VITE_API_BASE_URL=http://${SERVER_IP}:${BACKEND_PORT}" > frontend/.env
+
 info "管理员: admin / ${ADMIN_PASSWORD}"
 info "前台地址: http://${SERVER_IP}:${FRONTEND_PORT}"
 info "后台地址: http://${SERVER_IP}:${FRONTEND_PORT}/admin/login"
