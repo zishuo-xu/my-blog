@@ -507,7 +507,7 @@ export default function AdminEditor() {
         />
 
         {/* 右侧：实时预览区（和前台样式100%一致） */}
-        <div style={{ width: `${100 - splitRatio}%` }} className="overflow-y-auto p-4 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 min-w-0">
+        <div style={{ width: `${100 - splitRatio}%` }} className="h-full overflow-y-auto p-4 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 min-w-0">
           <MarkdownRenderer content={content} />
         </div>
       </div>
