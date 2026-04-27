@@ -93,6 +93,10 @@ cd "$PROJECT_DIR/backend"
 python3 -m venv venv
 . venv/bin/activate
 pip install -r requirements.txt -q
+# 后端 .env（符号链接指向上层 .env，config.py 从 backend/ 目录加载）
+ln -sf "${PROJECT_DIR}/.env" "${PROJECT_DIR}/backend/.env"
+
+# 静态资源目录
 mkdir -p app/static/upload
 deactivate
 
