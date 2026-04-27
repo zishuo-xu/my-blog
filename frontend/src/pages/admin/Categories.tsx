@@ -92,7 +92,20 @@ export default function AdminCategories() {
               <input
                 type="text"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setName(v);
+                  if (!editing && !slug) {
+                    setSlug(
+                      v
+                        .toLowerCase()
+                        .replace(/\s+/g, "-")
+                        .replace(/[^a-z0-9一-龥-]/g, "")
+                        .replace(/-+/g, "-")
+                        .replace(/^-|-$/g, "")
+                    );
+                  }
+                }}
                 placeholder="分类名称"
                 className="w-full px-3 py-1.5 text-sm rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:border-brand-500"
               />
