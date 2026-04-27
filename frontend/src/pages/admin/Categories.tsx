@@ -49,9 +49,10 @@ export default function AdminCategories() {
       }
       resetForm();
       fetchCategories();
-    } catch (err) {
+    } catch (err: any) {
       console.error("保存分类失败:", err);
-      alert("保存失败，请重试");
+      const msg = err.response?.data?.msg || "保存失败，请重试";
+      alert(msg);
     } finally {
       setSaving(false);
     }
@@ -119,6 +120,11 @@ export default function AdminCategories() {
                 placeholder="url-slug"
                 className="w-full px-3 py-1.5 text-sm rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:border-brand-500"
               />
+              {categories.length > 0 && (
+                <div className="mt-1 text-[10px] text-gray-400">
+                  已有 slug: {categories.map((c) => c.slug).join(", ")}
+                </div>
+              )}
             </div>
             <div className="flex gap-2">
               <button onClick={resetForm} className="btn-ghost text-xs">取消</button>
