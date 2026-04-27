@@ -96,15 +96,21 @@ export default function AdminCategories() {
                 onChange={(e) => {
                   const v = e.target.value;
                   setName(v);
-                  if (!editing && !slug) {
-                    setSlug(
-                      v
-                        .toLowerCase()
-                        .replace(/\s+/g, "-")
-                        .replace(/[^a-z0-9一-龥-]/g, "")
-                        .replace(/-+/g, "-")
-                        .replace(/^-|-$/g, "")
-                    );
+                  if (!editing) {
+                    const base = v
+                      .toLowerCase()
+                      .replace(/\s+/g, "-")
+                      .replace(/[^a-z0-9一-龥-]/g, "")
+                      .replace(/-+/g, "-")
+                      .replace(/^-|-$/g, "");
+                    const existing = new Set(categories.map((c) => c.slug));
+                    let uniq = base;
+                    let suffix = 1;
+                    while (existing.has(uniq)) {
+                      uniq = `${base}-${suffix}`;
+                      suffix++;
+                    }
+                    setSlug(uniq);
                   }
                 }}
                 placeholder="分类名称"
@@ -120,11 +126,6 @@ export default function AdminCategories() {
                 placeholder="url-slug"
                 className="w-full px-3 py-1.5 text-sm rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:border-brand-500"
               />
-              {categories.length > 0 && (
-                <div className="mt-1 text-[10px] text-gray-400">
-                  已有 slug: {categories.map((c) => c.slug).join(", ")}
-                </div>
-              )}
             </div>
             <div className="flex gap-2">
               <button onClick={resetForm} className="btn-ghost text-xs">取消</button>
