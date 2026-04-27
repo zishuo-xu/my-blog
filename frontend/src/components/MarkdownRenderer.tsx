@@ -6,7 +6,6 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
-import rehypeRaw from "rehype-raw";
 import rehypeSlug from "rehype-slug";
 import type { Components } from "react-markdown";
 
@@ -77,7 +76,7 @@ export default function MarkdownRenderer({ content, className = "" }: MarkdownRe
     <div className={`prose prose-gray max-w-none dark:prose-invert ${className}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeRaw, rehypeSlug, [rehypeHighlight, { detect: true }]]}
+        rehypePlugins={[rehypeSlug, [rehypeHighlight, { detect: true }]]}
         components={components}
       >
         {content}

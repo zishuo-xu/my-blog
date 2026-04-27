@@ -4,7 +4,7 @@
  * 内容区：MD完美渲染，代码块带语法高亮，图片懒加载+点击放大
  * 右侧固定TOC目录（移动端隐藏），滚动时自动高亮当前章节
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { getArticleDetail } from "../api/articles";
 import type { Article, TocItem } from "../types";
@@ -17,6 +17,7 @@ export default function ArticleDetail() {
   const [toc, setToc] = useState<TocItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const contentRef = useRef<HTMLDivElement>(null);
 
   /* 加载文章详情 */
   useEffect(() => {
@@ -28,8 +29,6 @@ export default function ArticleDetail() {
       try {
         const res = await getArticleDetail(idOrSlug);
         setArticle(res.data.data);
-        /* 从Markdown原文中提取TOC */
-        extractTocFromMd(res.data.data.content_md || "");
       } catch (err) {
         setError("文章不存在或加载失败");
         console.error(err);
@@ -40,19 +39,21 @@ export default function ArticleDetail() {
     fetchArticle();
   }, [idOrSlug]);
 
-  /* 从Markdown原文中提取目录结构 */
-  const extractTocFromMd = (md: string) => {
-    const pattern = /^(#{1,6})\s+(.+)$/gm;
-    const items: TocItem[] = [];
-    let match;
-    while ((match = pattern.exec(md)) !== null) {
-      const level = match[1].length;
-      const text = match[2].trim();
-      const id = text.toLowerCase().replace(/[^\w一-鿿]+/g, "-").replace(/^-|-$/g, "");
-      items.push({ level, text, id });
-    }
-    setToc(items);
-  };
+  /* 渲染完成后从 DOM 中提取 TOC，保证 id 与 rehype-slug 生成的完全一致 */
+  useEffect(() => {
+    if (!article) return;
+    const timer = setTimeout(() => {
+      if (!contentRef.current) return;
+      const headings = contentRef.current.querySelectorAll("h2, h3, h4, h5, h6");
+      const items: TocItem[] = Array.from(headings).map((h) => ({
+        level: parseInt(h.tagName[1]),
+        text: h.textContent || "",
+        id: h.id,
+      }));
+      setToc(items);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [article]);
 
   /* 格式化日期 */
   const formatDate = (dateStr: string | null) => {
@@ -113,7 +114,9 @@ export default function ArticleDetail() {
           </header>
 
           {/* MD渲染内容：用content_md前端渲染，和后台预览区100%一致 */}
-          <MarkdownRenderer content={article.content_md || ""} />
+          <div ref={contentRef}>
+            <MarkdownRenderer content={article.content_md || ""} />
+          </div>
         </div>
 
         {/* 右侧：TOC目录（移动端隐藏） */}

@@ -343,7 +343,12 @@ export default function AdminEditor() {
         slug: slug || undefined,
       };
       if (isEdit) {
-        await updateArticle(Number(id), data);
+        // 存草稿时不改变已发布文章的发布状态
+        const payload = { ...data };
+        if (!publish) {
+          delete (payload as any).is_published;
+        }
+        await updateArticle(Number(id), payload);
       } else {
         const res = await createArticle(data);
         // 创建成功后清除草稿

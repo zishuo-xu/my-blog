@@ -52,10 +52,12 @@ export default function Search() {
   /* 高亮匹配关键词 */
   const highlightText = (text: string, keyword: string) => {
     if (!keyword.trim()) return text;
-    const regex = new RegExp(`(${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, "gi");
+    const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(`(${escaped})`, "gi");
     const parts = text.split(regex);
+    const lowerKeyword = keyword.toLowerCase();
     return parts.map((part, i) =>
-      regex.test(part) ? (
+      part.toLowerCase() === lowerKeyword ? (
         <mark key={i} className="bg-brand-50 text-brand-600 dark:bg-brand-900/40 dark:text-brand-400 rounded px-0.5">
           {part}
         </mark>
