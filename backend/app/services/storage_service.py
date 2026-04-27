@@ -71,12 +71,13 @@ def get_storage_backend() -> StorageBackend:
         raise ValueError(f"不支持的存储类型: {storage_type}")
 
 
-def compress_image(file_data: bytes, filename: str) -> bytes:
+def compress_image(file_data: bytes, filename: str, detected_fmt: str | None = None) -> bytes:
     """
     压缩图片
     如果图片大小超过压缩阈值，自动压缩到阈值以内
     :param file_data: 原始图片字节数据
     :param filename: 原始文件名（用于判断格式）
+    :param detected_fmt: PIL 检测到的真实格式（优先使用）
     :return: 压缩后的图片字节数据
     """
     file_size = len(file_data)
@@ -86,7 +87,7 @@ def compress_image(file_data: bytes, filename: str) -> bytes:
         return file_data
 
     # 解析格式
-    ext = Path(filename).suffix.lower().lstrip(".")
+    ext = detected_fmt or Path(filename).suffix.lower().lstrip(".")
     # PIL的格式名映射
     format_map = {"jpg": "JPEG", "jpeg": "JPEG", "png": "PNG", "webp": "WEBP"}
     pil_format = format_map.get(ext, "JPEG")
@@ -98,18 +99,18 @@ def compress_image(file_data: bytes, filename: str) -> bytes:
     # 打开图片并压缩
     img = PILImage.open(BytesIO(file_data))
 
-    # PNG转RGB（去除alpha通道以支持JPEG压缩）
-    if img.mode in ("RGBA", "P"):
-        img = img.convert("RGB")
-
     output = BytesIO()
     # 根据格式选择压缩参数
-    if pil_format == "JPEG":
-        img.save(output, format="JPEG", quality=settings.COMPRESS_QUALITY, optimize=True)
+    if pil_format == "PNG":
+        # PNG 保持原格式，保留透明度
+        img.save(output, format="PNG", optimize=True)
     elif pil_format == "WEBP":
         img.save(output, format="WEBP", quality=settings.COMPRESS_QUALITY)
     else:
-        img.save(output, format=pil_format, optimize=True)
+        # JPEG 需要 RGB 模式
+        if img.mode in ("RGBA", "P"):
+            img = img.convert("RGB")
+        img.save(output, format="JPEG", quality=settings.COMPRESS_QUALITY, optimize=True)
 
     compressed = output.getvalue()
 
@@ -132,6 +133,21 @@ def generate_filepath(filename: str) -> str:
     return f"{now.year}/{now.month:02d}/{random_name}{ext}"
 
 
+def _validate_image_bytes(file_data: bytes) -> str:
+    """
+    验证文件内容是否为真实图片，返回检测到的格式
+    :raises ValueError: 不是有效图片或格式不支持
+    """
+    try:
+        img = PILImage.open(BytesIO(file_data))
+        fmt = img.format.lower() if img.format else ""
+        if fmt not in ("jpeg", "png", "gif", "webp"):
+            raise ValueError(f"不支持的图片格式: {fmt}，仅支持: jpg, png, gif, webp")
+        return fmt
+    except Exception:
+        raise ValueError("上传的文件不是有效的图片")
+
+
 async def save_upload_image(file: UploadFile) -> dict:
     """
     处理图片上传的完整流程：校验→压缩→存储→返回信息
@@ -139,7 +155,7 @@ async def save_upload_image(file: UploadFile) -> dict:
     :return: {"filename": 存储文件名, "original_name": 原始文件名, "url": 访问URL, "file_size": 文件大小}
     :raises ValueError: 文件格式不支持或超过大小限制
     """
-    # 校验文件格式
+    # 校验文件扩展名
     ext = Path(file.filename).suffix.lower().lstrip(".")
     if ext not in settings.ALLOWED_IMAGE_TYPES:
         raise ValueError(f"不支持的图片格式: {ext}，仅支持: {', '.join(settings.ALLOWED_IMAGE_TYPES)}")
@@ -151,8 +167,11 @@ async def save_upload_image(file: UploadFile) -> dict:
     if len(file_data) > settings.max_image_size_bytes:
         raise ValueError(f"文件大小超过限制: 最大{settings.MAX_IMAGE_SIZE_MB}MB")
 
+    # 验证文件内容是否为真实图片
+    detected_fmt = _validate_image_bytes(file_data)
+
     # 压缩图片
-    compressed_data = compress_image(file_data, file.filename)
+    compressed_data = compress_image(file_data, file.filename, detected_fmt)
 
     # 生成存储路径
     filepath = generate_filepath(file.filename)

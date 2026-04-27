@@ -17,6 +17,7 @@ router = APIRouter(prefix="/admin/upload", tags=["管理-图片上传"])
 @router.post("/image", summary="图片上传（支持多图）")
 async def upload_images(
     files: list[UploadFile] = File(..., description="图片文件列表"),
+    article_id: int | None = None,
     db: Session = Depends(get_db),
     username: str = Depends(get_current_user),
 ):
@@ -37,6 +38,7 @@ async def upload_images(
                 original_name=info["original_name"],
                 url=info["url"],
                 file_size=info["file_size"],
+                article_id=article_id,
             )
             db.add(image_record)
             db.commit()

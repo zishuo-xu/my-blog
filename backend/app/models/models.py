@@ -43,7 +43,7 @@ class Category(Base):
     name = Column(String(50), unique=True, nullable=False, comment="分类名称")
     slug = Column(String(50), unique=True, nullable=False, comment="分类slug，用于URL")
     # 一对多：一个分类下有多篇文章
-    articles = relationship("Article", back_populates="category", lazy="selectin")
+    articles = relationship("Article", back_populates="category", lazy="selectin", passive_deletes=True)
 
     def __repr__(self):
         return f"<Category(id={self.id}, name='{self.name}')>"
@@ -57,7 +57,7 @@ class Tag(Base):
     name = Column(String(50), unique=True, nullable=False, comment="标签名称")
     slug = Column(String(50), unique=True, nullable=False, comment="标签slug，用于URL")
     # 多对多：通过article_tags关联表
-    articles = relationship("Article", secondary=article_tags, back_populates="tags", lazy="selectin")
+    articles = relationship("Article", secondary=article_tags, back_populates="tags", lazy="selectin", passive_deletes=True)
 
     def __repr__(self):
         return f"<Tag(id={self.id}, name='{self.name}')>"

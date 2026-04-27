@@ -8,8 +8,9 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
-from app.models.models import Article, Category, Tag, article_tags
+from app.models.models import Article, Category, Tag, Image, article_tags
 from app.schemas.schemas import ArticleCreate, ArticleUpdate
+from app.services.storage_service import get_storage_backend
 
 
 def calculate_read_time(content_md: str) -> int:
@@ -133,10 +134,18 @@ def update_article(db: Session, article_id: int, article_data: ArticleUpdate) ->
 
 
 def delete_article(db: Session, article_id: int) -> bool:
-    """删除文章，返回是否删除成功"""
+    """删除文章及其关联图片，返回是否删除成功"""
     article = db.query(Article).filter(Article.id == article_id).first()
     if not article:
         return False
+
+    # 删除关联的图片文件和数据库记录
+    images = db.query(Image).filter(Image.article_id == article_id).all()
+    storage = get_storage_backend()
+    for img in images:
+        storage.delete(img.filename)
+        db.delete(img)
+
     db.delete(article)
     db.commit()
     return True

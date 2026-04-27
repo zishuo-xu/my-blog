@@ -262,20 +262,30 @@ def parse_front_matter(content: str) -> dict:
     return result
 
 
+import sqlite3
+
 def backup_database_and_images() -> bytes:
     """
     一键备份数据库+所有图片为ZIP包
     ZIP结构：
-    - blog.db：SQLite数据库文件
+    - blog.db：SQLite数据库文件（使用VACUUM INTO保证一致性）
     - images/：所有上传的图片
     """
     buffer = io.BytesIO()
+    db_path = settings.DATABASE_URL.replace("sqlite:///", "")
 
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-        # 备份数据库文件
-        db_path = settings.DATABASE_URL.replace("sqlite:///", "")
+        # 使用 VACUUM INTO 创建一致性快照，避免复制正在写入的数据库文件
         if os.path.exists(db_path):
-            zf.write(db_path, "blog.db")
+            temp_backup = db_path + ".vacuum_backup"
+            try:
+                conn = sqlite3.connect(db_path)
+                conn.execute(f"VACUUM INTO '{temp_backup}'")
+                conn.close()
+                zf.write(temp_backup, "blog.db")
+            finally:
+                if os.path.exists(temp_backup):
+                    os.remove(temp_backup)
 
         # 备份图片目录
         upload_dir = Path(settings.UPLOAD_DIR)
