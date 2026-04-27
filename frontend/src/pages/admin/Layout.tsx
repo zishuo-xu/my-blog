@@ -11,6 +11,7 @@ import DarkModeToggle from "../../components/DarkModeToggle";
 const SIDEBAR_ITEMS = [
   { label: "文章管理", path: "/admin/articles" },
   { label: "写文章", path: "/admin/editor" },
+  { label: "分类管理", path: "/admin/categories" },
 ];
 
 export default function AdminLayout() {
