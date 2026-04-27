@@ -77,7 +77,7 @@ app.add_middleware(
 
 # ===== 静态文件服务（图片访问） =====
 
-app.mount("/static", StaticFiles(directory=settings.UPLOAD_DIR), name="static")
+app.mount("/static/upload", StaticFiles(directory=settings.UPLOAD_DIR), name="upload")
 
 
 # ===== 注册API路由 =====

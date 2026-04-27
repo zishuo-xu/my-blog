@@ -85,7 +85,6 @@ export function uploadImages(files: File[]) {
   files.forEach((file) => formData.append("files", file));
   return request.post<ApiResponse<{ images: ImageInfo[]; errors: { filename: string; error: string }[] }>>(
     "/api/v1/admin/upload/image",
-    formData,
-    { headers: { "Content-Type": "multipart/form-data" } }
+    formData
   );
 }
