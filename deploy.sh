@@ -66,16 +66,21 @@ fi
 info "===== 3. 配置环境变量 ====="
 [ ! -f .env ] && cp .env.example .env
 
-[ -z "$JWT_SECRET_KEY" ] && JWT_SECRET_KEY=$(openssl rand -hex 32)
+# 只在 .env 中不存在时才生成/设置密钥和密码，避免每次部署重置
+if ! grep -q "^JWT_SECRET_KEY=" .env 2>/dev/null || [ -z "$(grep "^JWT_SECRET_KEY=" .env | cut -d= -f2)" ]; then
+    [ -z "$JWT_SECRET_KEY" ] && JWT_SECRET_KEY=$(openssl rand -hex 32)
+    sed -i "s|^JWT_SECRET_KEY=.*|JWT_SECRET_KEY=${JWT_SECRET_KEY}|" .env
+fi
+
+if ! grep -q "^ADMIN_PASSWORD=" .env 2>/dev/null || [ -z "$(grep "^ADMIN_PASSWORD=" .env | cut -d= -f2)" ]; then
+    sed -i "s|^ADMIN_PASSWORD=.*|ADMIN_PASSWORD=${ADMIN_PASSWORD}|" .env
+fi
 
 # 获取服务器IP，优先外网，fallback内网
 SERVER_IP=$(curl -s --max-time 5 https://api.ipify.org 2>/dev/null) \
     || SERVER_IP=$(curl -s --max-time 5 https://ifconfig.me 2>/dev/null) \
     || SERVER_IP=$(hostname -I | awk '{print $1}')
 [ -z "$SERVER_IP" ] && SERVER_IP="你的服务器IP"
-
-sed -i "s|^ADMIN_PASSWORD=.*|ADMIN_PASSWORD=${ADMIN_PASSWORD}|" .env
-sed -i "s|^JWT_SECRET_KEY=.*|JWT_SECRET_KEY=${JWT_SECRET_KEY}|" .env
 sed -i "s|^FRONTEND_URL=.*|FRONTEND_URL=http://${SERVER_IP}:${FRONTEND_PORT}|" .env
 sed -i "s|^SITE_URL=.*|SITE_URL=http://${SERVER_IP}:${BACKEND_PORT}|" .env
 sed -i "s|^DEBUG=.*|DEBUG=false|" .env
@@ -103,10 +108,10 @@ deactivate
 # ===== 5. 前端构建 =====
 info "===== 5. 前端构建 ====="
 cd "$PROJECT_DIR/frontend"
-# 显式用nvm的node，避免shell版本不一致
-NVM_NODE=/root/.nvm/versions/node/v20.20.2/bin/node
-NVM_NPM=/root/.nvm/versions/node/v20.20.2/bin/npm
-$NVM_NPM install 2>/dev/null | tail -3
+# 显式用nvm的node，避免shell版本不一致（动态获取实际安装路径）
+NVM_NODE=$(nvm which node)
+NVM_NPM="$(dirname "$NVM_NODE")/npm"
+$NVM_NPM install | tail -3
 $NVM_NODE node_modules/.bin/vite build || $NVM_NPM run build || err "前端构建失败"
 $NVM_NPM install -g serve
 
@@ -148,8 +153,10 @@ WantedBy=multi-user.target
 EOF
 
 systemctl daemon-reload
-systemctl enable blog-backend blog-frontend
-systemctl restart blog-backend blog-frontend
+systemctl enable blog-backend blog-frontend || true
+# 分开重启避免一个失败导致另一个也被跳过
+systemctl restart blog-backend || warn "后端服务重启失败，请检查 journalctl -u blog-backend -f"
+systemctl restart blog-frontend || warn "前端服务重启失败，请检查 journalctl -u blog-frontend -f"
 
 # ===== 7. 验证 =====
 info "===== 7. 验证服务 ====="
