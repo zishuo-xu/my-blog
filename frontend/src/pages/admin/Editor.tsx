@@ -484,9 +484,9 @@ export default function AdminEditor() {
       </div>
 
       {/* ===== 左右分屏编辑区 ===== */}
-      <div className="flex-1 flex overflow-hidden" style={{ cursor: isDragging ? "col-resize" : "default" }}>
+      <div className="flex-1 min-h-0 flex overflow-hidden" style={{ cursor: isDragging ? "col-resize" : "default" }}>
         {/* 左侧：编辑区 */}
-        <div style={{ width: `${splitRatio}%` }} className="flex flex-col min-w-0 overflow-hidden">
+        <div style={{ width: `${splitRatio}%` }} className="flex flex-col min-w-0 h-full overflow-hidden">
           <textarea
             ref={textareaRef}
             value={content}
@@ -496,7 +496,7 @@ export default function AdminEditor() {
             onDragOver={handleDragOver}
             onKeyDown={handleKeyDown}
             placeholder="开始写作...&#10;&#10;支持三种图片上传方式：&#10;1. 截图后 Ctrl+V 粘贴上传&#10;2. 拖拽图片到编辑器上传&#10;3. 点击工具栏「图片」按钮选择文件上传"
-            className="flex-1 p-4 text-sm font-mono leading-relaxed rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:border-brand-500 resize-none overflow-y-auto"
+            className="h-full p-4 text-sm font-mono leading-relaxed rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:border-brand-500 resize-none overflow-y-auto"
           />
         </div>
 
