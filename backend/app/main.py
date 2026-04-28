@@ -62,6 +62,7 @@ def _init_site_config():
             "site_logo": (None, "站点 Logo URL"),
             "home_intro": ("这里分享编程、AI、工具使用和个人成长的记录，希望能给你带来一些启发。", "首页介绍语"),
             "github_url": ("https://github.com", "GitHub 链接"),
+            "xiaohongshu_url": (None, "小红书 链接"),
             "footer_text": ("All rights reserved.", "页脚版权文字"),
         }
         for key, (value, desc) in defaults.items():

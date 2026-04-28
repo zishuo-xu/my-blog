@@ -8,6 +8,7 @@ const DEFAULT_CONFIG: SiteConfig = {
   site_logo: null,
   home_intro: "这里分享编程、AI、工具使用和个人成长的记录，希望能给你带来一些启发。",
   github_url: "https://github.com",
+  xiaohongshu_url: null,
   footer_text: "All rights reserved.",
 };
 

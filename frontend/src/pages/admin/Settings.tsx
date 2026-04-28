@@ -8,6 +8,7 @@ const CONFIG_FIELDS: { key: string; label: string; placeholder: string; type?: "
   { key: "site_logo", label: "站点 Logo URL", placeholder: "https://example.com/logo.png", type: "image" },
   { key: "home_intro", label: "首页介绍语", placeholder: "这里分享...", type: "textarea" },
   { key: "github_url", label: "GitHub 链接", placeholder: "https://github.com/username" },
+  { key: "xiaohongshu_url", label: "小红书 链接", placeholder: "https://www.xiaohongshu.com/user/profile/xxx" },
   { key: "footer_text", label: "页脚版权文字", placeholder: "All rights reserved." },
 ];
 
