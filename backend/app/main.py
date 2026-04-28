@@ -8,12 +8,15 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.interval import IntervalTrigger
 
 from app.core.config import settings
 from app.core.database import engine, Base, SessionLocal
 from app.core.security import hash_password
 from app.models.models import User, SiteConfig
 from app.api.v1.router import api_router
+from app.services.backup_service import scheduled_backup
 
 
 # ===== 应用生命周期管理 =====
@@ -27,8 +30,27 @@ async def lifespan(app: FastAPI):
     _init_site_config()
     # 确保上传目录存在
     Path(settings.UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
+
+    # 启动定时备份任务
+    scheduler = BackgroundScheduler()
+    if settings.BACKUP_ENABLED:
+        scheduler.add_job(
+            scheduled_backup,
+            IntervalTrigger(days=settings.BACKUP_INTERVAL_DAYS),
+            id="scheduled_backup",
+            replace_existing=True,
+        )
+        scheduler.start()
+        print(f"[定时备份] 已启动，间隔: {settings.BACKUP_INTERVAL_DAYS} 天")
+    else:
+        print("[定时备份] 已禁用")
+
     yield
-    # 关闭时的清理逻辑（如有需要）
+
+    # 关闭时停止定时器
+    if scheduler.running:
+        scheduler.shutdown()
+        print("[定时备份] 已停止")
 
 
 def _init_admin_user():

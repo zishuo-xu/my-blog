@@ -22,6 +22,7 @@ const AdminEditor = lazy(() => import("./pages/admin/Editor"));
 const AdminCategories = lazy(() => import("./pages/admin/Categories"));
 const AdminTags = lazy(() => import("./pages/admin/Tags"));
 const AdminSettings = lazy(() => import("./pages/admin/Settings"));
+const AdminBackup = lazy(() => import("./pages/admin/Backup"));
 
 /* 通用loading占位 */
 const Loading = () => (
@@ -98,6 +99,11 @@ export default function App() {
           <Route path="settings" element={
             <Suspense fallback={<Loading />}>
               <AdminSettings />
+            </Suspense>
+          } />
+          <Route path="backup" element={
+            <Suspense fallback={<Loading />}>
+              <AdminBackup />
             </Suspense>
           } />
         </Route>

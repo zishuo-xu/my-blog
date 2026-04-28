@@ -123,3 +123,21 @@ class SiteConfig(Base):
 
     def __repr__(self):
         return f"<SiteConfig(key='{self.key}', value='{self.value}')>"
+
+
+class BackupRecord(Base):
+    """备份记录表，追踪每次备份的状态"""
+    __tablename__ = "backup_records"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    filename = Column(String(200), nullable=False, comment="备份文件名")
+    oss_key = Column(String(300), nullable=False, comment="OSS对象Key")
+    oss_url = Column(String(500), nullable=False, comment="OSS访问URL")
+    file_size = Column(Integer, nullable=False, comment="备份文件大小（字节）")
+    trigger_type = Column(String(20), nullable=False, comment="触发方式：manual/scheduled")
+    status = Column(String(20), nullable=False, default="success", comment="状态：success/failed")
+    error_msg = Column(String(500), nullable=True, comment="失败原因")
+    created_at = Column(DateTime, default=datetime.utcnow, comment="备份时间")
+
+    def __repr__(self):
+        return f"<BackupRecord(id={self.id}, filename='{self.filename}', status='{self.status}')>"

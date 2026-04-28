@@ -70,6 +70,12 @@ class Settings:
     SITE_NAME: str = os.getenv("SITE_NAME", "My Blog")
     SITE_DESCRIPTION: str = os.getenv("SITE_DESCRIPTION", "A minimal personal blog")
 
+    # ===== 定时备份配置 =====
+    BACKUP_ENABLED: bool = os.getenv("BACKUP_ENABLED", "true").lower() == "true"
+    BACKUP_INTERVAL_DAYS: int = int(os.getenv("BACKUP_INTERVAL_DAYS", "3"))
+    BACKUP_RETENTION_DAYS: int = int(os.getenv("BACKUP_RETENTION_DAYS", "30"))
+    BACKUP_OSS_PREFIX: str = os.getenv("BACKUP_OSS_PREFIX", "backups")
+
     @property
     def max_image_size_bytes(self) -> int:
         """最大图片字节数"""

@@ -14,6 +14,7 @@ const SIDEBAR_ITEMS = [
   { label: "分类管理", path: "/admin/categories" },
   { label: "标签管理", path: "/admin/tags" },
   { label: "站点配置", path: "/admin/settings" },
+  { label: "备份管理", path: "/admin/backup" },
 ];
 
 export default function AdminLayout() {

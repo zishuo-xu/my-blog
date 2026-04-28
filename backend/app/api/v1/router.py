@@ -19,6 +19,7 @@ from app.api.v1.admin import tags as admin_tags
 from app.api.v1.admin import upload as admin_upload
 from app.api.v1.admin import data as admin_data
 from app.api.v1.admin import site_config as admin_site_config
+from app.api.v1.admin import backup as admin_backup
 
 # 版本1的API路由前缀
 api_router = APIRouter(prefix="/api/v1")
@@ -40,3 +41,4 @@ api_router.include_router(admin_tags.router)
 api_router.include_router(admin_upload.router)
 api_router.include_router(admin_data.router)
 api_router.include_router(admin_site_config.router)
+api_router.include_router(admin_backup.router)
