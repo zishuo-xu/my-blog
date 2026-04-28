@@ -14,6 +14,17 @@ from io import BytesIO
 
 from app.core.config import settings
 
+# 阿里云OSS（延迟导入，避免未配置时加载）
+_oss2 = None
+
+
+def _get_oss2():
+    global _oss2
+    if _oss2 is None:
+        import oss2
+        _oss2 = oss2
+    return _oss2
+
 
 class StorageBackend:
     """存储后端基类，定义统一接口"""
@@ -55,18 +66,136 @@ class LocalStorage(StorageBackend):
         return False
 
 
+class AliyunOSSStorage(StorageBackend):
+    """阿里云OSS存储"""
+
+    def __init__(self):
+        oss2 = _get_oss2()
+        self.auth = oss2.Auth(
+            settings.OSS_ACCESS_KEY_ID,
+            settings.OSS_ACCESS_KEY_SECRET,
+        )
+        self.bucket = oss2.Bucket(
+            self.auth,
+            settings.OSS_ENDPOINT,
+            settings.OSS_BUCKET_NAME,
+        )
+        # 访问URL：使用https + 自定义域名或Bucket域名
+        # 优先使用 SITE_URL 作为CDN/自定义域名前缀
+        if settings.SITE_URL:
+            self.base_url = settings.SITE_URL.rstrip("/")
+        else:
+            self.base_url = f"https://{settings.OSS_BUCKET_NAME}.{settings.OSS_ENDPOINT}"
+
+    def save(self, file_data: bytes, filepath: str) -> str:
+        """上传文件到OSS，返回访问URL"""
+        self.bucket.put_object(filepath, file_data)
+        return f"{self.base_url}/{filepath}"
+
+    def delete(self, filepath: str) -> bool:
+        """从OSS删除文件
+        filepath 可能是完整URL，需要提取对象Key
+        """
+        # 如果是完整URL，提取对象Key
+        if filepath.startswith("http"):
+            # 从URL中提取路径部分，去掉base_url
+            if self.base_url in filepath:
+                key = filepath.replace(f"{self.base_url}/", "")
+            else:
+                # URL不匹配，尝试从路径提取
+                from urllib.parse import urlparse
+                parsed = urlparse(filepath)
+                key = parsed.path.lstrip("/")
+        else:
+            key = filepath
+
+        try:
+            self.bucket.delete_object(key)
+            return True
+        except Exception:
+            return False
+
+
+class CloudflareR2Storage(StorageBackend):
+    """Cloudflare R2存储（S3兼容）"""
+
+    def __init__(self):
+        try:
+            import boto3
+            from botocore.config import Config
+        except ImportError:
+            raise RuntimeError("使用R2需要安装 boto3: pip install boto3")
+
+        self.endpoint = f"https://{settings.R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+        self.client = boto3.client(
+            "s3",
+            endpoint_url=self.endpoint,
+            aws_access_key_id=settings.R2_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.R2_ACCESS_KEY_SECRET,
+            config=Config(signature_version="s3v4"),
+        )
+        self.bucket = settings.R2_BUCKET_NAME
+        self.base_url = settings.SITE_URL.rstrip("/") if settings.SITE_URL else self.endpoint
+
+    def save(self, file_data: bytes, filepath: str) -> str:
+        self.client.put_object(Bucket=self.bucket, Key=filepath, Body=file_data)
+        return f"{self.base_url}/{filepath}"
+
+    def delete(self, filepath: str) -> bool:
+        if filepath.startswith("http"):
+            key = filepath.replace(f"{self.base_url}/", "")
+        else:
+            key = filepath
+        try:
+            self.client.delete_object(Bucket=self.bucket, Key=key)
+            return True
+        except Exception:
+            return False
+
+
+class QiniuStorage(StorageBackend):
+    """七牛云存储"""
+
+    def __init__(self):
+        try:
+            import qiniu
+        except ImportError:
+            raise RuntimeError("使用七牛云需要安装 qiniu: pip install qiniu")
+
+        self.auth = qiniu.Auth(settings.QINIU_ACCESS_KEY, settings.QINIU_SECRET_KEY)
+        self.bucket = settings.QINIU_BUCKET_NAME
+        self.base_url = settings.QINIU_DOMAIN.rstrip("/") if settings.QINIU_DOMAIN else ""
+
+    def save(self, file_data: bytes, filepath: str) -> str:
+        token = self.auth.upload_token(self.bucket, filepath)
+        ret, info = qiniu.put_data(token, filepath, file_data)
+        if ret is None:
+            raise RuntimeError(f"七牛上传失败: {info}")
+        return f"{self.base_url}/{filepath}"
+
+    def delete(self, filepath: str) -> bool:
+        if filepath.startswith("http"):
+            key = filepath.replace(f"{self.base_url}/", "")
+        else:
+            key = filepath
+        try:
+            ret, info = self.bucket_manager.delete(self.bucket, key)
+            return ret is not None
+        except Exception:
+            return False
+
+
 def get_storage_backend() -> StorageBackend:
     """根据配置获取存储后端实例"""
     storage_type = settings.STORAGE_TYPE
     if storage_type == "local":
         return LocalStorage()
-    # TODO: 后续实现云存储后端
-    # elif storage_type == "aliyun_oss":
-    #     return AliyunOSSStorage()
-    # elif storage_type == "cloudflare_r2":
-    #     return CloudflareR2Storage()
-    # elif storage_type == "qiniu":
-    #     return QiniuStorage()
+    elif storage_type == "aliyun_oss":
+        return AliyunOSSStorage()
+    elif storage_type == "cloudflare_r2":
+        return CloudflareR2Storage()
+    elif storage_type == "qiniu":
+        return QiniuStorage()
     else:
         raise ValueError(f"不支持的存储类型: {storage_type}")
 

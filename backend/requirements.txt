@@ -9,3 +9,4 @@ Pillow==11.1.0
 mistune==3.0.2
 python-multipart==0.0.20
 aiofiles==24.1.0
+oss2==2.18.6
