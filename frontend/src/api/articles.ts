@@ -2,7 +2,7 @@
  * 前台公开API接口
  */
 import request from "./request";
-import type { ApiResponse, PaginationData, Article, ArticleListItem, Category, Tag, ArchiveItem } from "../types";
+import type { ApiResponse, PaginationData, Article, ArticleListItem, Category, Tag, ArchiveItem, SiteConfig } from "../types";
 
 /* 获取已发布文章列表 */
 export function getPublishedArticles(params: {
@@ -38,4 +38,9 @@ export function getArchive() {
 /* 全文搜索 */
 export function searchArticles(params: { q: string; page?: number; page_size?: number }) {
   return request.get<ApiResponse<PaginationData<ArticleListItem> & { keyword: string }>>("/api/v1/public/search", { params });
+}
+
+/* 获取站点配置 */
+export function getSiteConfig() {
+  return request.get<ApiResponse<SiteConfig>>("/api/v1/public/site-config");
 }

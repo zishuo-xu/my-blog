@@ -88,3 +88,8 @@ export function uploadImages(files: File[]) {
     formData
   );
 }
+
+/* ===== 站点配置 ===== */
+export function updateSiteConfig(configs: Record<string, string | null>) {
+  return request.put<ApiResponse<null>>("/api/v1/admin/site-config", { configs });
+}

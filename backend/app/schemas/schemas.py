@@ -171,3 +171,19 @@ class ImageOut(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+# ===== 站点配置相关 =====
+
+class SiteConfigItem(BaseModel):
+    """站点配置项"""
+    key: str
+    value: str | None
+    description: str | None
+
+    model_config = {"from_attributes": True}
+
+
+class SiteConfigUpdate(BaseModel):
+    """批量更新站点配置"""
+    configs: dict[str, str | None]

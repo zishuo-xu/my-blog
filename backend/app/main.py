@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from app.core.config import settings
 from app.core.database import engine, Base, SessionLocal
 from app.core.security import hash_password
-from app.models.models import User
+from app.models.models import User, SiteConfig
 from app.api.v1.router import api_router
 
 
@@ -21,9 +21,10 @@ from app.api.v1.router import api_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用启动和关闭时的生命周期管理"""
-    # 启动时：创建数据库表、初始化管理员账号
+    # 启动时：创建数据库表、初始化管理员账号、初始化站点配置
     Base.metadata.create_all(bind=engine)
     _init_admin_user()
+    _init_site_config()
     # 确保上传目录存在
     Path(settings.UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
     yield
@@ -47,6 +48,27 @@ def _init_admin_user():
             print(f"[初始化] 管理员账号已创建: {settings.ADMIN_USERNAME}")
         else:
             print(f"[初始化] 管理员账号已存在: {settings.ADMIN_USERNAME}")
+    finally:
+        db.close()
+
+
+def _init_site_config():
+    """首次启动时初始化默认站点配置"""
+    db = SessionLocal()
+    try:
+        defaults = {
+            "site_title": ("My Blog", "站点标题"),
+            "site_subtitle": ("记录技术、思考与生活", "站点副标题"),
+            "site_logo": (None, "站点 Logo URL"),
+            "home_intro": ("这里分享编程、AI、工具使用和个人成长的记录，希望能给你带来一些启发。", "首页介绍语"),
+            "github_url": ("https://github.com", "GitHub 链接"),
+            "footer_text": ("All rights reserved.", "页脚版权文字"),
+        }
+        for key, (value, desc) in defaults.items():
+            existing = db.query(SiteConfig).filter(SiteConfig.key == key).first()
+            if existing is None:
+                db.add(SiteConfig(key=key, value=value, description=desc))
+        db.commit()
     finally:
         db.close()
 

@@ -5,6 +5,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import DarkModeToggle from "./DarkModeToggle";
+import { useSiteConfig } from "../hooks/useSiteConfig";
 
 /* 导航项配置 */
 const NAV_ITEMS = [
@@ -19,6 +20,7 @@ export default function Navbar() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const location = useLocation();
+  const { config } = useSiteConfig();
 
   /* 执行搜索：跳转到搜索页 */
   const handleSearch = (e: React.FormEvent) => {
@@ -34,8 +36,11 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700">
       <nav className="content-container flex items-center justify-between h-14">
         {/* 站点名称 */}
-        <Link to="/" className="text-lg font-semibold text-gray-800 dark:text-gray-100 hover:text-brand-500 transition-colors">
-          My Blog
+        <Link to="/" className="flex items-center gap-2 text-lg font-semibold text-gray-800 dark:text-gray-100 hover:text-brand-500 transition-colors">
+          {config.site_logo && (
+            <img src={config.site_logo} alt="" className="h-7 w-7 rounded-full object-cover" />
+          )}
+          <span>{config.site_title}</span>
         </Link>
 
         {/* PC端导航项 */}

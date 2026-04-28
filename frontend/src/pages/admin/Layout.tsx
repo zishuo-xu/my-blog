@@ -13,6 +13,7 @@ const SIDEBAR_ITEMS = [
   { label: "写文章", path: "/admin/editor" },
   { label: "分类管理", path: "/admin/categories" },
   { label: "标签管理", path: "/admin/tags" },
+  { label: "站点配置", path: "/admin/settings" },
 ];
 
 export default function AdminLayout() {

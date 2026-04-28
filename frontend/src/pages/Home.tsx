@@ -8,12 +8,14 @@ import { getPublishedArticles } from "../api/articles";
 import type { ArticleListItem } from "../types";
 import ArticleCard from "../components/ArticleCard";
 import Pagination from "../components/Pagination";
+import { useSiteConfig } from "../hooks/useSiteConfig";
 
 export default function Home() {
   const [articles, setArticles] = useState<ArticleListItem[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(true);
+  const { config } = useSiteConfig();
 
   /* 加载文章列表 */
   useEffect(() => {
@@ -41,6 +43,16 @@ export default function Home() {
 
   return (
     <div className="content-container min-h-screen">
+      {/* 首页介绍卡片 */}
+      <div className="my-8 p-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+        <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">
+          {config.site_title}
+        </h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+          {config.home_intro}
+        </p>
+      </div>
+
       {loading ? (
         /* 加载状态：极简loading，不花哨 */
         <div className="flex items-center justify-center py-20">

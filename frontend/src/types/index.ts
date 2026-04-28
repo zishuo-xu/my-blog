@@ -86,3 +86,14 @@ export interface TocItem {
   text: string;
   id: string;
 }
+
+/* 站点配置 */
+export interface SiteConfig {
+  site_title: string;
+  site_subtitle: string;
+  site_logo: string | null;
+  home_intro: string;
+  github_url: string;
+  footer_text: string;
+  [key: string]: string | null;
+}

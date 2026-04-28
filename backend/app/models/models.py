@@ -111,3 +111,15 @@ class Image(Base):
 
     def __repr__(self):
         return f"<Image(id={self.id}, filename='{self.filename}')>"
+
+
+class SiteConfig(Base):
+    """站点配置表，键值对存储"""
+    __tablename__ = "site_configs"
+
+    key = Column(String(50), primary_key=True, comment="配置键")
+    value = Column(String(500), nullable=True, comment="配置值")
+    description = Column(String(200), nullable=True, comment="配置说明")
+
+    def __repr__(self):
+        return f"<SiteConfig(key='{self.key}', value='{self.value}')>"
