@@ -58,43 +58,27 @@
 
 **API 端点**：`GET /api/v1/admin/export`（需 JWT）
 
-### 2.4 自动化备份（crontab）
+### 2.4 自动化备份（APScheduler）
 
-在服务器配置定时任务，每日凌晨自动备份到本地目录，保留最近 7 天：
+系统内置 APScheduler 定时备份，无需配置 crontab。
 
-```bash
-# /etc/cron.d/blog-backup
-SHELL=/bin/bash
-PATH=/usr/local/bin:/usr/bin:/bin
+**启动时自动注册**：`main.py` lifespan 中创建 `BackgroundScheduler`，按 `BACKUP_INTERVAL_DAYS` 间隔执行。
 
-# 每天 03:00 执行全量备份
-0 3 * * * root /root/my-blog/scripts/auto_backup.sh >> /var/log/blog-backup.log 2>&1
+**配置项**：
+
+```env
+BACKUP_ENABLED=true              # 是否启用
+BACKUP_INTERVAL_DAYS=3           # 每3天备份一次
+BACKUP_RETENTION_DAYS=30         # 保留30天
+BACKUP_OSS_PREFIX=backups        # OSS存储前缀
 ```
 
-`auto_backup.sh` 示例：
-
-```bash
-#!/bin/bash
-set -e
-
-PROJECT_DIR="/root/my-blog"
-BACKUP_DIR="/root/backups"
-TOKEN="YOUR_ADMIN_JWT_TOKEN"
-RETENTION_DAYS=7
-
-mkdir -p "$BACKUP_DIR"
-DATE=$(date +%Y%m%d_%H%M%S)
-
-# 下载备份
-curl -s -H "Authorization: Bearer $TOKEN" \
-  http://localhost:8000/api/v1/admin/backup \
-  -o "$BACKUP_DIR/blog_backup_$DATE.zip"
-
-# 清理过期备份
-find "$BACKUP_DIR" -name "blog_backup_*.zip" -mtime +$RETENTION_DAYS -delete
-
-echo "[$(date)] Backup completed: blog_backup_$DATE.zip"
-```
+**备份流程**：
+1. 生成数据库快照（`VACUUM INTO`）
+2. 打包为 ZIP（图片在 OSS 时仅含数据库）
+3. 上传至阿里云 OSS `backups/` 前缀
+4. 写入 `BackupRecord` 记录
+5. 清理超过保留期的旧备份
 
 ---
 
@@ -285,8 +269,7 @@ rm "/tmp/$BACKUP_FILE"
 
 ## 6. 待优化项
 
-1. **后台 UI 一键备份/恢复按钮**：当前仅提供 API，需管理员手动 curl 或 SSH 操作
-2. **增量备份**：当前全量备份每次都会打包所有图片，图片量大时效率低
-3. **备份加密**：敏感数据库建议备份时 AES 加密
-4. **异地容灾**：支持将备份自动同步至第二存储（如另一台服务器或云盘）
-5. **恢复 API**：提供 `POST /api/v1/admin/restore` 端点，上传 ZIP 后自动完成恢复流程
+1. **增量备份**：当前全量备份每次都会打包所有图片，图片量大时效率低
+2. **备份加密**：敏感数据库建议备份时 AES 加密
+3. **异地容灾**：支持将备份自动同步至第二存储（如另一台服务器或云盘）
+4. **恢复 API**：提供 `POST /api/v1/admin/restore` 端点，上传 ZIP 后自动完成恢复流程

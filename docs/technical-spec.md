@@ -43,6 +43,7 @@
 | MD 渲染 | mistune | 3.x | 纯 Python，插件化扩展，服务端渲染 |
 | 图片处理 | Pillow | 11.x | 格式转换、质量压缩、尺寸调整 |
 | 对象存储 | oss2 / boto3 / qiniu | - | 支持阿里云 OSS、Cloudflare R2、七牛云 |
+| 定时任务 | APScheduler | 3.11 | 内置定时备份，无需外部 crontab |
 | 进程管理 | uvicorn + systemd | - | ASGI 服务器 + 系统级守护 |
 
 ---
@@ -123,6 +124,7 @@ app.add_middleware(
 | Tag | name, slug | 多对多 Article |
 | Image | filename, original_name, url, file_size | 可选关联 Article |
 | SiteConfig | key, value, description | 键值对配置存储 |
+| BackupRecord | filename, oss_key, oss_url, file_size, trigger_type, status | 备份历史追踪 |
 
 ### 5.2 数据流
 
@@ -288,7 +290,44 @@ Nginx / 直接暴露端口
 
 ---
 
-## 11. 扩展指南
+## 11. 定时备份架构
+
+### 11.1 备份流程
+
+```
+[APScheduler BackgroundScheduler]
+    ↓ IntervalTrigger(days=BACKUP_INTERVAL_DAYS)
+perform_backup(trigger_type="scheduled")
+    ↓
+backup_database_and_images()  # 使用 VACUUM INTO
+    ↓
+_upload_to_oss(data, oss_key)  # 上传至 OSS backups/ 前缀
+    ↓
+写入 BackupRecord (success/failed)
+    ↓
+_cleanup_old_backups()  # 删除超过保留期的备份
+```
+
+### 11.2 备份配置
+
+| 环境变量 | 说明 | 默认值 |
+|----------|------|--------|
+| `BACKUP_ENABLED` | 是否启用自动备份 | `true` |
+| `BACKUP_INTERVAL_DAYS` | 备份间隔（天） | `3` |
+| `BACKUP_RETENTION_DAYS` | 备份保留天数 | `30` |
+| `BACKUP_OSS_PREFIX` | OSS 存储前缀 | `backups` |
+
+### 11.3 管理接口
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/v1/admin/backup/trigger` | POST | 手动触发备份 |
+| `/api/v1/admin/backup/history` | GET | 获取备份历史 |
+| `/api/v1/admin/backup/stats` | GET | 获取备份统计 |
+
+---
+
+## 12. 扩展指南
 
 ### 11.1 接入新的云存储
 
