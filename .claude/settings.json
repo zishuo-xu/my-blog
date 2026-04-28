@@ -65,7 +65,12 @@
       "Bash(sshpass -p 'Y/_c3t#&#n5a4!G' ssh -o StrictHostKeyChecking=no root@47.107.187.18 \"systemctl restart blog-backend && systemctl restart blog-frontend && echo 'services restarted'\")",
       "Bash(sshpass -p 'Y/_c3t#&#n5a4!G' ssh -o StrictHostKeyChecking=no root@47.107.187.18 \"curl -s http://localhost:8000/api/v1/public/site-config | python3 -m json.tool\")",
       "Bash(sqlite3 backend/blog.db \"SELECT url FROM images LIMIT 5;\")",
-      "Bash(chmod +x /Users/xuzishuo/log/backend/scripts/migrate_to_oss.py /Users/xuzishuo/log/backend/scripts/migrate_from_oss.py)"
+      "Bash(chmod +x /Users/xuzishuo/log/backend/scripts/migrate_to_oss.py /Users/xuzishuo/log/backend/scripts/migrate_from_oss.py)",
+      "Bash(git reset *)",
+      "Bash(sshpass -p 'Y/_c3t#&#n5a4!G' ssh -o StrictHostKeyChecking=no root@47.107.187.18 \"cd /root/my-blog/backend && source venv/bin/activate && pip install -r requirements.txt -q && echo 'deps installed'\")",
+      "Bash(sshpass -p 'Y/_c3t#&#n5a4!G' ssh -o StrictHostKeyChecking=no root@47.107.187.18 \"systemctl restart blog-backend && sleep 2 && curl -s http://localhost:8000/api/v1/public/site-config | grep -q site_title && echo 'backend ok'\")",
+      "Bash(sshpass -p 'Y/_c3t#&#n5a4!G' ssh -o StrictHostKeyChecking=no root@47.107.187.18 \"cat /root/my-blog/.env\")",
+      "Bash(git commit *)"
     ]
   }
 }

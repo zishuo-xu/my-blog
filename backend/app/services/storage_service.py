@@ -81,9 +81,10 @@ class AliyunOSSStorage(StorageBackend):
             settings.OSS_BUCKET_NAME,
         )
         # 访问URL：使用https + 自定义域名或Bucket域名
-        # 优先使用 SITE_URL 作为CDN/自定义域名前缀
-        if settings.SITE_URL:
-            self.base_url = settings.SITE_URL.rstrip("/")
+        # 支持通过 OSS_CUSTOM_DOMAIN 配置自定义域名/CDN
+        custom_domain = os.getenv("OSS_CUSTOM_DOMAIN", "")
+        if custom_domain:
+            self.base_url = custom_domain.rstrip("/")
         else:
             self.base_url = f"https://{settings.OSS_BUCKET_NAME}.{settings.OSS_ENDPOINT}"
 
