@@ -10,17 +10,17 @@
 ┌─────────────────────────────────────────────────────┐
 │  前端 (React SPA, Vite Build)                        │
 │  ├─ 前台：文章列表 / 详情 / 分类 / 标签 / 归档 / 搜索 │
-│  ├─ 后台：登录 / 文章 CRUD / Markdown 编辑器          │
+│  ├─ 后台：登录 / 文章 CRUD / 分类 / 标签 / 站点配置    │
 │  └─ 公共组件：MarkdownRenderer（前后台样式复用）      │
 ├─────────────────────────────────────────────────────┤
 │  后端 (FastAPI, Uvicorn)                             │
-│  ├─ 公开 API：文章/分类/标签/归档/搜索/sitemap       │
+│  ├─ 公开 API：文章/分类/标签/归档/搜索/sitemap/站点配置│
 │  ├─ 管理 API：CRUD / 图片上传 / 数据导入导出 / 备份  │
 │  ├─ 业务层：MD 解析 / 图片压缩 / 存储适配             │
 │  └─ 数据层：SQLite + SQLAlchemy ORM                  │
 ├─────────────────────────────────────────────────────┤
 │  基础设施                                            │
-│  ├─ 本地文件存储（预留云存储扩展接口）                │
+│  ├─ 本地文件存储 / 阿里云 OSS / Cloudflare R2 / 七牛云│
 │  └─ systemd 服务守护 + 开机自启                       │
 └─────────────────────────────────────────────────────┘
 ```
@@ -33,7 +33,7 @@
 |------|------|------|----------|
 | 前端框架 | React | 18 | 生态成熟，组件化开发，SPA 路由管理 |
 | 构建工具 | Vite | 8 | 极速 HMR，生产构建优化，TypeScript 开箱支持 |
-| 类型系统 | TypeScript | 5.x | 前后端共享类型定义（`types.ts`），编译期排错 |
+| 类型系统 | TypeScript | 5.x | 前后端共享类型定义，编译期排错 |
 | 样式方案 | Tailwind CSS | 3.x | Utility-first，减少 CSS 文件体积，暗色模式支持 |
 | 状态管理 | React Hooks | - | 项目规模可控，无需引入 Redux/Zustand |
 | HTTP 客户端 | Axios | 1.x | 拦截器统一处理 Token 注入与错误响应 |
@@ -41,7 +41,8 @@
 | ORM | SQLAlchemy | 2.0 | 现代声明式模型，关系定义清晰 |
 | 数据库 | SQLite | - | 零运维，单文件部署，适合个人博客规模 |
 | MD 渲染 | mistune | 3.x | 纯 Python，插件化扩展，服务端渲染 |
-| 图片处理 | Pillow | 10.x | 格式转换、质量压缩、尺寸调整 |
+| 图片处理 | Pillow | 11.x | 格式转换、质量压缩、尺寸调整 |
+| 对象存储 | oss2 / boto3 / qiniu | - | 支持阿里云 OSS、Cloudflare R2、七牛云 |
 | 进程管理 | uvicorn + systemd | - | ASGI 服务器 + 系统级守护 |
 
 ---
@@ -53,23 +54,26 @@ my-blog/
 ├── backend/                          # 后端服务
 │   ├── app/
 │   │   ├── api/v1/                   # API 路由（按模块分目录）
-│   │   │   ├── admin/                # 管理接口（文章/分类/标签/上传/数据）
-│   │   │   └── public/               # 公开接口（文章列表/搜索/归档/sitemap）
+│   │   │   ├── admin/                # 管理接口（文章/分类/标签/上传/数据/站点配置）
+│   │   │   └── public/               # 公开接口（文章列表/搜索/归档/sitemap/站点配置）
 │   │   ├── core/                     # 核心配置、数据库连接、安全工具
 │   │   ├── models/                   # SQLAlchemy 数据模型
 │   │   ├── schemas/                  # Pydantic 请求/响应模型
 │   │   ├── services/                 # 业务逻辑层（MD 渲染、图片处理、存储、导出）
 │   │   └── main.py                   # FastAPI 应用入口、CORS、静态文件挂载
+│   ├── scripts/                      # 迁移脚本（本地 ↔ OSS）
 │   └── requirements.txt
 ├── frontend/                         # 前端应用
 │   ├── src/
 │   │   ├── api/                      # API 调用封装（Axios 实例 + 各模块接口）
 │   │   ├── components/               # 公共组件（MarkdownRenderer、DarkModeToggle）
+│   │   ├── hooks/                    # 自定义 Hooks（useSiteConfig）
 │   │   ├── pages/                    # 页面组件（前台 + 后台）
-│   │   ├── types.ts                  # 全局 TypeScript 类型定义
+│   │   ├── types/                    # 全局 TypeScript 类型定义
 │   │   └── App.tsx                   # 路由配置
 │   └── vite.config.ts
 ├── deploy.sh                         # 一键部署脚本（Ubuntu/Debian）
+├── docs/                             # 项目文档
 └── .env.example                      # 环境变量模板
 ```
 
@@ -115,9 +119,10 @@ app.add_middleware(
 |------|----------|------|
 | User | username, password_hash | - |
 | Article | title, slug, content_md, content_html, summary, is_published | 多对一 Category，多对多 Tag |
-| Category | name, slug | 一对多 Article |
+| Category | name, slug | 一对多 Article（passive_deletes） |
 | Tag | name, slug | 多对多 Article |
-| Image | filename, original_name, url, file_size | - |
+| Image | filename, original_name, url, file_size | 可选关联 Article |
+| SiteConfig | key, value, description | 键值对配置存储 |
 
 ### 5.2 数据流
 
@@ -155,11 +160,12 @@ _md_parser = mistune.create_markdown(plugins=[
 
 ### 6.2 客户端渲染
 
-前端使用 `react-markdown` + `rehype-highlight` 实现代码高亮：
+前端使用 `react-markdown` + `rehype-highlight` + `rehype-slug`：
 
 - 前后台共用 `<MarkdownRenderer>` 组件，确保预览与最终效果一致
 - 代码块使用 `highlight.js` 进行语法高亮
-- 支持暗色模式下的代码高亮主题切换
+- **安全处理**：已移除 `rehypeRaw`，防止 XSS 攻击
+- TOC 从渲染后的 DOM 提取 heading ID，保证与 `rehype-slug` 生成的 ID 一致
 
 ---
 
@@ -173,9 +179,9 @@ Frontend (File/Blob)
 Axios (FormData, multipart/form-data)
     ↓
 Backend: FastAPI UploadFile
-    ├─ 校验：格式（jpg/png/gif/webp）、大小（默认 ≤5MB）
-    ├─ 压缩：>2MB 自动压缩，质量 85%，PNG→JPEG（去除 alpha）
-    ├─ 存储：本地文件系统，路径格式 upload/年/月/随机8位.后缀
+    ├─ 校验：格式（jpg/png/gif/webp）、内容真实性（PIL 验证）、大小（默认 ≤5MB）
+    ├─ 压缩：>2MB 自动压缩，质量 85%，PNG 保留透明度
+    ├─ 存储：通过 StorageBackend 统一接口（本地 / OSS / R2 / 七牛）
     └─ 记录：写入 Image 表
     ↓
 Response: { images: [{ url, filename, original_name, file_size }] }
@@ -191,8 +197,12 @@ class StorageBackend(ABC):
     def delete(self, filepath: str) -> bool: ...
 ```
 
-- **LocalStorage**：默认实现，文件保存在 `UPLOAD_DIR`，通过 `/static/upload/` 访问
-- **预留扩展**：阿里云 OSS、Cloudflare R2、七牛云（已实现接口定义，待接入 SDK）
+| 后端 | 配置 | 说明 |
+|------|------|------|
+| **LocalStorage** | `STORAGE_TYPE=local` | 默认，文件保存在 `UPLOAD_DIR` |
+| **AliyunOSSStorage** | `STORAGE_TYPE=aliyun_oss` | 已接入，支持自定义域名 |
+| **CloudflareR2Storage** | `STORAGE_TYPE=cloudflare_r2` | 已接入，S3 兼容 |
+| **QiniuStorage** | `STORAGE_TYPE=qiniu` | 已接入 |
 
 ### 7.3 静态文件挂载
 
@@ -201,11 +211,12 @@ class StorageBackend(ABC):
 app.mount("/static/upload", StaticFiles(directory=settings.UPLOAD_DIR), name="upload")
 ```
 
-返回 URL 格式：`{SITE_URL}/static/upload/{year}/{month}/{filename}`
+本地存储返回 URL 格式：`{SITE_URL}/static/upload/{year}/{month}/{filename}`  
+OSS 存储返回 URL 格式：`https://{bucket}.{endpoint}/{year}/{month}/{filename}`
 
 ---
 
-## 8. 鉴权方案
+## 8. 鉴权与安全
 
 ### 8.1 JWT 设计
 
@@ -220,13 +231,39 @@ app.mount("/static/upload", StaticFiles(directory=settings.UPLOAD_DIR), name="up
 
 - Token 通过 HTTP Header 传输，非 Cookie（避免 CSRF 问题）
 - 后端 `/api/v1/admin/*` 路由统一使用 `get_current_user` 依赖注入鉴权
+- `get_current_user` 解码 JWT 后**查询 User 表验证账号存在**，防止删除账号后 Token 仍有效
 - 密码使用 `bcrypt` 哈希存储
+- 登录接口 IP 限流：5 次失败 → 锁定 5 分钟
 
 ---
 
-## 9. 部署架构
+## 9. 站点配置系统
 
-### 9.1 生产部署
+### 9.1 配置项
+
+| 配置键 | 用途 | 前台展示位置 |
+|--------|------|-------------|
+| `site_title` | 站点标题 | Navbar、Home 介绍卡片 |
+| `site_subtitle` | 站点副标题 | Navbar 标题右侧 |
+| `site_logo` | 站点 Logo | Navbar |
+| `home_intro` | 首页介绍语 | Home 介绍卡片 |
+| `github_url` | GitHub 链接 | Footer |
+| `xiaohongshu_url` | 小红书链接 | Footer |
+| `footer_text` | 页脚版权文字 | Footer |
+
+### 9.2 配置初始化
+
+首次启动时，`_init_site_config()` 自动插入默认配置。新增配置项需同步更新：
+1. `backend/app/main.py` - `_init_site_config()` 默认值
+2. `frontend/src/hooks/useSiteConfig.ts` - `DEFAULT_CONFIG` 默认值
+3. `frontend/src/types/index.ts` - `SiteConfig` 接口
+4. `frontend/src/pages/admin/Settings.tsx` - 后台表单字段
+
+---
+
+## 10. 部署架构
+
+### 10.1 生产部署
 
 ```
 Nginx / 直接暴露端口
@@ -235,12 +272,12 @@ Nginx / 直接暴露端口
         └─ SQLite 文件
 ```
 
-### 9.2 systemd 服务
+### 10.2 systemd 服务
 
 - `blog-backend.service`：Uvicorn 运行 FastAPI，WorkingDirectory 指向 `backend/`
 - `blog-frontend.service`：`serve` 运行静态构建产物，Environment PATH 包含 nvm node 目录
 
-### 9.3 一键部署脚本关键逻辑
+### 10.3 一键部署脚本关键逻辑
 
 1. 环境检测：Python ≥3.10，Node.js ≥20（通过 nvm 安装）
 2. `.env` 配置：自动生成 `JWT_SECRET_KEY`，检测服务器公网 IP
@@ -251,15 +288,16 @@ Nginx / 直接暴露端口
 
 ---
 
-## 10. 扩展指南
+## 11. 扩展指南
 
-### 10.1 接入云存储
+### 11.1 接入新的云存储
 
 1. 继承 `StorageBackend` 实现对应云存储后端
 2. 在 `get_storage_backend()` 中添加分支判断
 3. 配置对应的环境变量（AccessKey、SecretKey、Bucket 等）
+4. 安装对应 SDK 到 `requirements.txt`
 
-### 10.2 更换数据库
+### 11.2 更换数据库
 
 当前使用 SQLite，如需迁移到 PostgreSQL/MySQL：
 
@@ -267,19 +305,19 @@ Nginx / 直接暴露端口
 2. 安装对应数据库驱动（`psycopg2` / `pymysql`）
 3. 无需修改模型代码（SQLAlchemy 已做抽象）
 
-### 10.3 前端二次开发
+### 11.3 前端二次开发
 
 - 品牌色：`BRAND_COLOR` 环境变量（十六进制，不含 `#`）
 - 新增页面：在 `frontend/src/pages/` 添加组件，在 `App.tsx` 注册路由
-- API 新增：在 `frontend/src/api/` 添加接口函数，在 `types.ts` 补充类型
+- API 新增：在 `frontend/src/api/` 添加接口函数，在 `types/` 补充类型
 
 ---
 
-## 11. 已知限制
+## 12. 已知限制
 
 | 限制 | 说明 |
 |------|------|
 | 单管理员 | 当前仅支持一个管理员账号 |
 | 无评论系统 | 如需评论需额外集成第三方服务 |
-| 图片存储路径 | 本地存储时图片与代码在同一服务器，大流量场景建议迁移云存储 |
 | SQLite 并发 | 高并发写入场景建议迁移 PostgreSQL |
+| 图片删除 | 删除文章时同步删除关联图片文件，但文章正文中手动引用的外链图片不处理 |

@@ -185,18 +185,35 @@ EOF
 - 备份：`/root/backups/`
 
 **优点**：零依赖、恢复快  
-**缺点**：单点风险，磁盘故障即丢失
+**缺点**：单点风险，磁盘故障即丢失，全量备份体积大
 
-### 4.2 远程对象存储（推荐生产环境）
+### 4.2 阿里云 OSS（已接入）
 
-支持阿里云 OSS、Cloudflare R2、七牛云。配置 `.env`：
+**配置 `.env`**：
 
 ```env
 STORAGE_TYPE=aliyun_oss
 OSS_ACCESS_KEY_ID=xxx
 OSS_ACCESS_KEY_SECRET=xxx
 OSS_ENDPOINT=oss-cn-hangzhou.aliyuncs.com
-OSS_BUCKET=my-blog-images
+OSS_BUCKET_NAME=your-bucket-name
+OSS_CUSTOM_DOMAIN=                    # 可选：自定义域名/CDN
+```
+
+**注意事项**：
+- Bucket 权限必须设为「公共读」，否则图片 URL 返回 403
+- 使用 `OSS_CUSTOM_DOMAIN` 可配置 CDN 加速域名
+
+**迁移脚本**：
+
+```bash
+cd backend && source venv/bin/activate
+
+# 本地 → OSS
+python scripts/migrate_to_oss.py
+
+# OSS → 本地（回退）
+python scripts/migrate_from_oss.py
 ```
 
 **备份策略调整**：
@@ -204,7 +221,31 @@ OSS_BUCKET=my-blog-images
 - 备份体积从数百 MB 降至数 MB
 - 可将备份包本身也上传至对象存储的 `backups/` 前缀
 
-### 4.3 云存储备份脚本示例
+### 4.3 Cloudflare R2（已接入）
+
+S3 兼容接口，免费额度高，适合海外部署：
+
+```env
+STORAGE_TYPE=cloudflare_r2
+R2_ACCOUNT_ID=xxx
+R2_ACCESS_KEY_ID=xxx
+R2_ACCESS_KEY_SECRET=xxx
+R2_BUCKET_NAME=xxx
+```
+
+### 4.4 七牛云（已接入）
+
+国内 CDN 加速效果好：
+
+```env
+STORAGE_TYPE=qiniu
+QINIU_ACCESS_KEY=xxx
+QINIU_SECRET_KEY=xxx
+QINIU_BUCKET_NAME=xxx
+QINIU_DOMAIN=https://cdn.example.com
+```
+
+### 4.5 云存储备份脚本示例
 
 ```bash
 #!/bin/bash
@@ -238,6 +279,7 @@ rm "/tmp/$BACKUP_FILE"
 | 服务启动 | `systemctl restart blog-backend blog-frontend` |
 | 功能验证 | 前台首页、文章详情、图片显示、后台登录 |
 | 数据校验 | 文章数量、分类数量、标签数量与预期一致 |
+| 存储验证 | 新上传图片是否正确写入配置的存储后端 |
 
 ---
 
