@@ -59,6 +59,7 @@ export default function AdminArticles() {
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
                 <th className="text-left px-4 py-2 font-medium text-gray-500 dark:text-gray-400">标题</th>
+                <th className="text-left px-4 py-2 font-medium text-gray-500 dark:text-gray-400 w-24">分类</th>
                 <th className="text-left px-4 py-2 font-medium text-gray-500 dark:text-gray-400 w-20">状态</th>
                 <th className="text-left px-4 py-2 font-medium text-gray-500 dark:text-gray-400 w-24">日期</th>
                 <th className="text-left px-4 py-2 font-medium text-gray-500 dark:text-gray-400 w-32">操作</th>
@@ -68,6 +69,9 @@ export default function AdminArticles() {
               {articles.map((article) => (
                 <tr key={article.id} className="border-b border-gray-100 dark:border-gray-700/50">
                   <td className="px-4 py-3 text-gray-800 dark:text-gray-200">{article.title}</td>
+                  <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400">
+                    {article.category?.name || "-"}
+                  </td>
                   <td className="px-4 py-3">
                     <span className={`text-xs px-1.5 py-0.5 rounded ${article.is_published ? "bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400" : "bg-yellow-50 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400"}`}>
                       {article.is_published ? "已发布" : "草稿"}
