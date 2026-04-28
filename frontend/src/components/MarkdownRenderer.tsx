@@ -2,7 +2,6 @@
  * Markdown渲染组件
  * 支持：数学公式(KaTeX)、Mermaid图表、任务列表、脚注、提示块
  */
-import { useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
