@@ -41,6 +41,11 @@ export default function Navbar() {
             <img src={config.site_logo} alt="" className="h-7 w-7 rounded-full object-cover" />
           )}
           <span>{config.site_title}</span>
+          {config.site_subtitle && (
+            <span className="hidden sm:inline text-sm text-gray-400 dark:text-gray-500 font-normal ml-1">
+              {config.site_subtitle}
+            </span>
+          )}
         </Link>
 
         {/* PC端导航项 */}

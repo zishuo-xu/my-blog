@@ -9,7 +9,7 @@ from app.core.database import get_db
 from app.models.models import SiteConfig
 from app.schemas.schemas import ResponseBase
 
-router = APIRouter(prefix="/site-config", tags=["公开-站点配置"])
+router = APIRouter(prefix="/public/site-config", tags=["公开-站点配置"])
 
 
 @router.get("", summary="获取站点配置")
